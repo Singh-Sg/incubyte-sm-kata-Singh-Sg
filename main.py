@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+
+from fastapi import FastAPI, Body, HTTPException
 from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from pydantic import BaseModel
 
 DATABASE_URL = "sqlite:///./employees.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -9,6 +11,34 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 app = FastAPI()
+
+# ...existing code...
+
+# Salary calculation endpoint
+class SalaryRequest(BaseModel):
+    gross_salary: float
+
+class SalaryResponse(BaseModel):
+    gross_salary: float
+    deductions: float
+    net_salary: float
+
+@app.post("/salary/{employee_id}", response_model=SalaryResponse)
+def calculate_salary(employee_id: int, salary_req: SalaryRequest = Body(...)):
+    db = SessionLocal()
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    db.close()
+    if employee is None:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    gross = salary_req.gross_salary
+    if employee.country.lower() == "india":
+        deductions = gross * 0.10
+    elif employee.country.lower() == "united states":
+        deductions = gross * 0.12
+    else:
+        deductions = 0
+    net = gross - deductions
+    return SalaryResponse(gross_salary=gross, deductions=deductions, net_salary=net)
 
 class Employee(Base):
     __tablename__ = "employees"
