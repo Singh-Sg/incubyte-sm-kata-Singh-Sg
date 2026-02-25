@@ -1,3 +1,16 @@
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from main import Employee, DATABASE_URL
+
+@pytest.fixture(autouse=True)
+def clear_employees():
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = SessionLocal()
+    db.query(Employee).delete()
+    db.commit()
+    db.close()
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
